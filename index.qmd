@@ -1,25 +1,269 @@
 ---
-title: "Mi pagina web"
-format: html
+title: "Fertilización nitrogenada y riego en el cultivo de papa"
+subtitle: "Propuesta de experimento agronómico | Programación – Unidad II"
+author: "Lenin Mendozaza Llanos"
+lang: es
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    number-sections: true
+    code-fold: true
+    code-summary: "Ver código en R"
+    smooth-scroll: true
+    embed-resources: true
+    css: estilos_papa.css
+execute:
+  eval: true
+  echo: true
+  warning: false
+  message: false
 ---
 
-## Quarto
+::: {.callout-note title="Naturaleza del trabajo"}
+Este documento presenta **una propuesta experimental**, no un ensayo ya ejecutado. El diseño, la aleatorización y los gráficos de planificación son reproducibles; **no se presentan rendimientos medidos ni se afirman efectos comprobados**.
+:::
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+# Resumen del proyecto
 
-## Running Code
-
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
-
-```{r}
-1 + 1
-```
-
-You can add options to executable code like this 
+Se propone evaluar, en el cultivo de papa (*Solanum tuberosum* L.), el efecto de tres dosis de fertilización nitrogenada (0, 100 y 200 kg N/ha) y dos intervalos de riego (7 y 14 días), mediante un **Diseño de Bloques Completos al Azar (DBCA)** con arreglo factorial 3 × 2 y cuatro bloques. El experimento tendrá seis tratamientos y 24 unidades experimentales. La variable respuesta principal será el rendimiento de tubérculos (t/ha). Se registrarán además características del crecimiento y de la producción.
 
 ```{r}
+#| label: cuadro-resumen
 #| echo: false
-2 * 2
+resumen <- data.frame(
+  Indicador = c("Cultivo", "Diseño", "Factores", "Tratamientos", "Bloques", "Unidades experimentales", "Variable principal"),
+  Descripción = c("Papa (Solanum tuberosum L.)", "DBCA factorial 3 × 2", "Nitrógeno y frecuencia de riego", "6", "4", "24", "Rendimiento (t/ha)")
+)
+knitr::kable(resumen, caption = "Ficha resumen del experimento")
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+# Planteamiento del problema
+
+La disponibilidad de nitrógeno favorece procesos como la formación de hojas y el crecimiento vegetal, mientras que el agua es necesaria para la fotosíntesis, el transporte de nutrientes y la formación de tubérculos. En campo, la aplicación de fertilizantes y la programación del riego pueden variar entre productores. Por ello, interesa evaluar **si las dosis de nitrógeno, la frecuencia de riego y su combinación** producen diferencias en el rendimiento de papa bajo las condiciones específicas del lugar de ensayo.
+
+**Pregunta de investigación:** ¿Cómo influyen tres dosis de nitrógeno y dos frecuencias de riego en el rendimiento de tubérculos del cultivo de papa?
+
+# Objetivos e hipótesis
+
+## Objetivo general
+
+Evaluar el efecto de la fertilización nitrogenada y de la frecuencia de riego sobre el rendimiento del cultivo de papa.
+
+## Objetivos específicos
+
+1. Comparar el rendimiento de la papa bajo tres dosis de nitrógeno.
+2. Evaluar la respuesta de la papa a dos intervalos de riego.
+3. Determinar si existe interacción entre la dosis de nitrógeno y la frecuencia de riego.
+4. Identificar las combinaciones de tratamientos con mejor desempeño, una vez obtenidos los datos de campo.
+
+## Hipótesis
+
+- **Hipótesis nula (H₀):** las dosis de nitrógeno, las frecuencias de riego y su interacción no modifican el rendimiento promedio.
+- **Hipótesis alternativa (H₁):** al menos uno de estos efectos modifica el rendimiento promedio.
+
+# Diseño experimental
+
+## Factores y niveles
+
+```{r}
+#| label: tabla-factores
+#| echo: false
+factores <- data.frame(
+  Factor = c("A: Fertilización nitrogenada", "B: Frecuencia de riego"),
+  Niveles = c("0, 100 y 200", "7 y 14"),
+  Unidad = c("kg N/ha", "días entre riegos")
+)
+knitr::kable(factores, caption = "Factores y niveles propuestos")
+```
+
+Los tratamientos consisten en todas las combinaciones de ambos factores. Cada tratamiento aparecerá **una vez en cada bloque**, con aleatorización independiente dentro del bloque.
+
+## Tratamientos
+
+```{r}
+#| label: tabla-tratamientos
+#| echo: false
+tratamientos <- data.frame(
+  Tratamiento = paste0("T", 1:6),
+  Nitrogeno_kg_ha = c(0, 0, 100, 100, 200, 200),
+  Riego_dias = c(7, 14, 7, 14, 7, 14)
+)
+knitr::kable(tratamientos, col.names = c("Tratamiento", "Nitrógeno (kg N/ha)", "Intervalo de riego (días)"), caption = "Seis combinaciones factoriales")
+```
+
+## Unidad experimental y manejo
+
+Cada unidad experimental será una parcela de papa. **Como propuesta inicial**, se plantea una parcela de 2 m × 3 m (6 m²), cuya dimensión deberá ajustarse a la disponibilidad de terreno, distanciamiento de siembra y bordes de cosecha. Si se utiliza esa dimensión, las 24 parcelas abarcarán 144 m² netos, **sin incluir caminos ni separación entre bloques**.
+
+Para que la comparación sea válida, se mantendrán constantes la variedad de papa, la procedencia y calidad de la semilla, la fecha de siembra, el manejo fitosanitario y, en lo posible, otras prácticas agronómicas. El aporte de fósforo y potasio se definirá de acuerdo con el análisis de suelo. Las dosis de nitrógeno deberán calcularse según la riqueza del fertilizante utilizado.
+
+::: {.callout-warning title="Consideración importante sobre el riego"}
+El intervalo de 7 o 14 días no describe por sí solo la cantidad de agua aplicada. En el protocolo definitivo deben registrarse **volumen o lámina por riego, lluvias y humedad del suelo**, porque la respuesta de la papa depende también del suministro hídrico total.
+:::
+
+## Modelo estadístico
+
+\[
+Y_{ijk} = \mu + B_k + N_i + R_j + (NR)_{ij} + \varepsilon_{ijk}
+\]
+
+Donde \(Y_{ijk}\) es el rendimiento observado; \(\mu\), la media general; \(B_k\), el efecto del bloque; \(N_i\), el efecto de la dosis de nitrógeno; \(R_j\), el efecto de la frecuencia de riego; \((NR)_{ij}\), la interacción; y \(\varepsilon_{ijk}\), el error experimental.
+
+# Libro de campo y croquis
+
+## Aleatorización reproducible
+
+El siguiente bloque crea un libro de campo con **24 parcelas**. La semilla `2026` permite reproducir exactamente la misma asignación en sucesivos Render.
+
+```{r}
+#| label: aleatorizacion
+#| echo: true
+set.seed(2026)
+tratamientos <- data.frame(
+  tratamiento = paste0("T", 1:6),
+  nitrogeno = c(0, 0, 100, 100, 200, 200),
+  riego = c(7, 14, 7, 14, 7, 14)
+)
+fb <- do.call(rbind, lapply(1:4, function(b) {
+  orden <- sample(1:6)
+  data.frame(
+    bloque = b,
+    parcela = 1:6,
+    tratamientos[orden, ],
+    row.names = NULL
+  )
+}))
+fb$codigo <- sprintf("B%d-P%02d", fb$bloque, fb$parcela)
+fb <- fb[, c("codigo", "bloque", "parcela", "tratamiento", "nitrogeno", "riego")]
+knitr::kable(fb, caption = "Libro de campo del experimento de papa")
+```
+
+## Croquis experimental por bloques
+
+```{r}
+#| label: croquis
+#| echo: false
+#| fig-width: 10
+#| fig-height: 5.6
+library(ggplot2)
+fb$bloque_f <- factor(fb$bloque, levels = 4:1,
+                      labels = paste("Bloque", 4:1))
+fb$tratamiento_f <- factor(fb$tratamiento, levels = paste0("T", 1:6))
+ggplot(fb, aes(x = parcela, y = bloque_f, fill = tratamiento_f)) +
+  geom_tile(color = "white", linewidth = 1.5, width = 0.97, height = 0.95) +
+  geom_text(aes(label = paste0(tratamiento, "\n", codigo)),
+            size = 3.5, fontface = "bold", lineheight = 1.2) +
+  scale_x_continuous(breaks = 1:6, expand = expansion(add = 0.55)) +
+  scale_fill_brewer(palette = "Set3", drop = FALSE) +
+  labs(title = "Croquis experimental aleatorizado",
+       subtitle = "DBCA factorial · cuatro bloques × seis parcelas",
+       x = "Posición de parcela dentro del bloque", y = NULL,
+       fill = "Tratamiento") +
+  theme_minimal(base_size = 12) +
+  theme(panel.grid = element_blank(), legend.position = "bottom")
+```
+
+## Matriz de distribución de tratamientos
+
+```{r}
+#| label: matriz-distribucion
+#| echo: false
+matriz <- do.call(rbind, lapply(1:4, function(b) fb$tratamiento[fb$bloque == b]))
+rownames(matriz) <- paste("Bloque", 1:4)
+colnames(matriz) <- paste("Parcela", 1:6)
+knitr::kable(matriz, caption = "Tratamientos asignados por bloque y parcela")
+```
+
+# Gráficos de planificación
+
+## Dosis de nitrógeno por tratamiento
+
+```{r}
+#| label: grafico-nitrogeno
+#| echo: false
+#| fig-width: 9
+#| fig-height: 4.6
+ggplot(tratamientos, aes(x = tratamiento, y = nitrogeno, fill = factor(riego))) +
+  geom_col(width = 0.68) +
+  geom_text(aes(label = nitrogeno), vjust = -0.45, size = 4) +
+  scale_y_continuous(limits = c(0, 230), breaks = c(0, 50, 100, 150, 200)) +
+  scale_fill_manual(values = c("7" = "#367b70", "14" = "#df9951")) +
+  labs(title = "Dosis de nitrógeno por tratamiento",
+       subtitle = "Gráfico de factores definidos; no representa resultados del cultivo",
+       x = "Tratamiento", y = "Nitrógeno (kg N/ha)", fill = "Riego (días)") +
+  theme_minimal(base_size = 12)
+```
+
+## Estructura factorial del estudio
+
+```{r}
+#| label: grafico-factorial
+#| echo: false
+#| fig-width: 9
+#| fig-height: 4.6
+ggplot(tratamientos, aes(x = factor(nitrogeno), y = factor(riego), fill = tratamiento)) +
+  geom_tile(color = "white", linewidth = 1.6) +
+  geom_text(aes(label = tratamiento), size = 6, fontface = "bold") +
+  scale_fill_brewer(palette = "Set3", guide = "none") +
+  labs(title = "Combinaciones del arreglo factorial 3 × 2",
+       x = "Dosis de nitrógeno (kg N/ha)", y = "Intervalo de riego (días)") +
+  theme_minimal(base_size = 12) + theme(panel.grid = element_blank())
+```
+
+# Variables y toma de datos
+
+| Variable | Unidad | Procedimiento propuesto |
+|---|---|---|
+| Altura de planta | cm | Medir desde la base hasta el extremo superior de la planta seleccionada. |
+| Número de tallos | tallos/planta | Contar tallos principales en plantas marcadas. |
+| Número de tubérculos | tubérculos/planta | Contar al momento de la cosecha. |
+| Peso de tubérculos | kg/planta | Pesar los tubérculos obtenidos de las plantas evaluadas. |
+| Rendimiento | t/ha | Pesar la producción del área útil y convertirla a hectárea. |
+
+Para cada parcela se recomienda registrar fecha de siembra, fecha de evaluación, tratamientos aplicados, lluvias, lámina de riego, observaciones sanitarias y área efectiva cosechada. Las mediciones deben realizarse con el mismo procedimiento en todas las parcelas.
+
+## Conversión del rendimiento
+
+Si se cosechan \(P\) kg en un área útil de \(A\) m², el rendimiento se expresa como:
+
+\[
+\text{Rendimiento (t/ha)} = \frac{P\,(\mathrm{kg})}{A\,(\mathrm{m}^2)} \times 10
+\]
+
+Esta expresión se utilizará cuando se disponga de los pesos reales de cosecha.
+
+# Plan de análisis estadístico
+
+Al finalizar el ensayo se realizará un ANOVA factorial en DBCA. Antes de interpretar los resultados, se revisarán los supuestos del modelo mediante el análisis de residuos y la homogeneidad de varianzas. Si la interacción nitrógeno × riego es significativa, se compararán las combinaciones de tratamientos, por ejemplo con medias marginales estimadas y ajuste de Tukey al 5 %. Si no es significativa, se podrán interpretar los efectos principales con el cuidado correspondiente.
+
+```{r}
+#| label: modelo-futuro
+#| eval: false
+# Este bloque es una plantilla: NO ejecutarlo sin datos reales.
+# datos_reales <- read.csv("datos_papa.csv")
+# datos_reales$bloque <- factor(datos_reales$bloque)
+# datos_reales$nitrogeno <- factor(datos_reales$nitrogeno)
+# datos_reales$riego <- factor(datos_reales$riego)
+# md <- aov(rendimiento_t_ha ~ bloque + nitrogeno * riego,
+#           data = datos_reales)
+# summary(md)
+# library(emmeans)
+# emmeans(md, ~ nitrogeno * riego)
+```
+
+# Resultados esperados y limitaciones
+
+Se espera que los tratamientos produzcan respuestas distintas en crecimiento o rendimiento, pero **no es posible anticipar cuál será superior sin medir las parcelas**. Los resultados estarán condicionados por la fertilidad del suelo, la variedad, el clima, el manejo del agua y otros factores locales. La superficie propuesta y los intervalos de riego deberán validarse antes de instalar el ensayo.
+
+# Conclusiones de la propuesta
+
+La propuesta organiza un experimento factorial de dos factores con seis tratamientos y cuatro bloques, para un total de 24 unidades experimentales. El libro de campo, el croquis y los gráficos presentados describen **la planificación**. Cuando se realice la cosecha y se registren los datos, será posible evaluar estadísticamente el rendimiento y sustentar conclusiones experimentales.
+
+# Referencias de consulta
+
+- Documentación de Quarto: <https://quarto.org/docs/guide/>
+- Documentación de R: <https://www.r-project.org/>
+- Documentación de ggplot2: <https://ggplot2.tidyverse.org/>
