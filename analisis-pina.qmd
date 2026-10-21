@@ -1,0 +1,296 @@
+
+---
+title: "Análisis experimental del cultivo de piña"
+subtitle: "Efecto del boro y potasio sobre el ancho del fruto"
+author: "Lenin Mendoza Llanos"
+lang: es
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: right
+    number-sections: true
+    embed-resources: true
+execute:
+  eval: true
+  echo: true
+  warning: false
+  message: false
+editor_options:
+  chunk_output_type: console
+---
+
+# Análisis de diseño experimental
+
+Se analiza el efecto de siete tratamientos de boro
+y potasio sobre el ancho del fruto de piña
+(*Ananas comosus* L. Merr.), variedad Golden MD-2.
+
+# Base de datos
+
+La información proviene de una base experimental
+organizada en Google Sheets, en la hoja `fb`.
+
+**Variable de respuesta:** ancho del fruto (cm).
+
+# Identificar los factores
+
+- Factor de tratamiento: combinaciones de boro y potasio.
+- Factor de bloqueo: bloque experimental.
+- Tratamientos: 7.
+- Bloques: 4.
+- Unidades experimentales: 28.
+
+# Identificar el modelo
+
+Se emplea un Diseño de Bloques Completos al Azar
+(DBCA), considerando los siete tratamientos.
+
+$$
+Y_{ij} = \mu + T_i + B_j + \varepsilon_{ij}
+$$
+
+Donde:
+
+- $Y_{ij}$: ancho promedio del fruto por parcela.
+- $\mu$: media general.
+- $T_i$: efecto del tratamiento.
+- $B_j$: efecto del bloque.
+- $\varepsilon_{ij}$: error experimental.
+
+# Project Setup
+
+```{r}
+#| label: setup
+
+library(googlesheets4)
+library(dplyr)
+library(ggplot2)
+library(emmeans)
+library(multcomp)
+library(multcompView)
+library(knitr)
+```
+
+# Activar los paquetes e importar los datos
+
+```{r}
+#| label: importar-datos
+
+googlesheets4::gs4_deauth()
+
+url <- "https://docs.google.com/spreadsheets/d/1oCA7u9mPY7OreIFi4Vi47VAYkhApEFCcQqde4axt8WI/edit?gid=1119977213#gid=1119977213"
+
+fb <- googlesheets4::read_sheet(
+  ss = url,
+  sheet = "fb"
+)
+
+fb <- fb %>%
+  mutate(
+    tratamiento = as.factor(tratamiento),
+    bloque = as.factor(bloque),
+    ancho_cm = as.numeric(ancho_cm)
+  )
+
+if (median(fb$ancho_cm, na.rm = TRUE) > 1000) {
+  fb$ancho_cm <- fb$ancho_cm / 1000
+  cat("Se corrigio la escala decimal de ancho_cm.\n")
+}
+
+str(fb)
+summary(fb$ancho_cm)
+
+stopifnot(
+  nrow(fb) == 28,
+  !anyNA(fb$ancho_cm),
+  median(fb$ancho_cm) > 10,
+  median(fb$ancho_cm) < 20
+)
+
+knitr::kable(
+  fb[, c("parcela", "tratamiento",
+         "bloque", "boro_ml",
+         "potasio_ml", "ancho_cm")],
+  digits = 3,
+  caption = "Base de datos organizada"
+)
+```
+
+# Tratamientos experimentales
+
+```{r}
+#| label: tratamientos
+
+tratamientos <- fb %>%
+  distinct(tratamiento, boro_ml, potasio_ml) %>%
+  arrange(tratamiento)
+
+knitr::kable(
+  tratamientos,
+  caption = "Combinaciones de boro y potasio"
+)
+```
+
+# Análisis de varianza
+
+El ANOVA permite determinar si existen diferencias
+estadísticamente significativas entre los siete
+tratamientos respecto al ancho del fruto de piña.
+
+Se utiliza un nivel de significancia de 5 %.
+
+```{r}
+#| label: anova
+
+md <- aov(
+  ancho_cm ~ bloque + tratamiento,
+  data = fb
+)
+
+anova(md)
+```
+
+# Interpretación del ANOVA
+
+```{r}
+#| label: interpretacion-anova
+
+pvalor <- anova(md)["tratamiento", "Pr(>F)"]
+
+cat("Valor p de tratamientos:",
+    signif(pvalor, 4), "\n")
+
+if (pvalor < 0.05) {
+  cat("Existen diferencias estadisticamente
+significativas entre los tratamientos
+al nivel del 5 %.")
+} else {
+  cat("No se encontraron diferencias
+estadisticamente significativas
+entre los tratamientos al nivel del 5 %.")
+}
+```
+
+# Comparación de medias
+
+Se utiliza la prueba de Tukey para comparar las
+medias de los siete tratamientos, con un nivel
+de significancia de 5 %.
+
+```{r}
+#| label: tukey
+
+mc <- emmeans(
+  md,
+  ~ tratamiento
+)
+
+tab <- multcomp::cld(
+  mc,
+  adjust = "tukey",
+  Letters = letters,
+  decreasing = TRUE
+)
+
+tab$.group <- trimws(tab$.group)
+
+knitr::kable(
+  as.data.frame(tab),
+  digits = 3,
+  caption = "Comparacion de medias de Tukey al 5 %"
+)
+```
+
+Los tratamientos que comparten una o más letras
+no presentan diferencias estadísticamente
+significativas entre sí.
+
+# Representación gráfica
+
+Se presentan las medias ajustadas de los
+tratamientos, con sus errores estándar
+y letras de significancia de Tukey.
+
+```{r}
+#| label: grafica
+#| fig-width: 11
+#| fig-height: 6
+
+grafico <- as.data.frame(tab)
+
+pl <- ggplot(
+  grafico,
+  aes(
+    x = tratamiento,
+    y = emmean,
+    fill = tratamiento
+  )
+) +
+  geom_col(
+    width = 0.65,
+    color = "black",
+    show.legend = FALSE
+  ) +
+  geom_errorbar(
+    aes(
+      ymin = emmean - SE,
+      ymax = emmean + SE
+    ),
+    width = 0.2
+  ) +
+geom_text(
+  aes(
+    y = emmean + SE + 0.45,
+    label = .group
+  ),
+  size = 5,
+  fontface = "bold",
+  color = "black"
+) +
+  scale_y_continuous(
+    limits = c(
+      0,
+      max(grafico$emmean + grafico$SE) + 1
+    ),
+    expand = expansion(mult = c(0, 0.02))
+  ) +
+  labs(
+    title = "Comparacion de tratamientos en piña",
+    subtitle = "Ancho del fruto y prueba de Tukey al 5 %",
+    x = "Tratamientos",
+    y = "Ancho del fruto (cm)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 16
+    ),
+    axis.text.x = element_text(size = 12)
+  )
+
+print(pl)
+```
+
+# Conclusiones
+
+El análisis estadístico permite evaluar las
+diferencias entre los tratamientos de boro y
+potasio respecto al ancho del fruto de piña.
+
+La prueba de Tukey permite identificar cuáles
+tratamientos presentan diferencias
+estadísticamente significativas.
+
+La gráfica facilita la comparación de los
+tratamientos mediante sus medias ajustadas,
+errores estándar y letras de significancia.
+
+# Referencia
+
+Chacón Huamaní, D. (2019).
+Boro y potasio en post inducción de
+*Ananas comosus* L. Merr. de la variedad
+Golden MD-2 en Río Negro.
+Universidad Nacional del Centro del Perú.
